@@ -13,26 +13,7 @@ function depend_on() {
 	fi
 }
 
-function spinner() {
-	local pid=$1
-
-	if [[ "$SPINNER" -eq 1 ]]; then
-		local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
-		local i=0
-		tput civis # Hide cursor
-		while kill -0 $pid 2>/dev/null; do
-			local i=$(((i + 1) % ${#spin}))
-			printf "%s" "${spin:$i:1}" # Print one character
-			echo -en "\033[$1D"        # Go back one character
-			sleep .1
-		done
-		tput cnorm # Restore cursor
-	fi
-
-	wait $pid
-	return $?
-}
-
+#Exit when a command fails
 set -e
 
 # Arguments extraction
@@ -68,9 +49,11 @@ done
 : ${IMAGE_DIR:="${HOME}/.linux-kernel-vscode"}
 : ${IMAGE_PATH:="${IMAGE_DIR}/debian-${TARGET_ARCH}.img"}
 : ${TRACER_PATH:=".vscode/autostart/tracer.stp"}
-if [[ "$TERM_PROGRAM" == "vscode" ]]; then
-	: ${CLEAR:=1}
-fi
+
+#QEMU related
+: ${QEMU_SERIAL:="mon:stdio"}
+: ${QEMU_CPU:="8"}
+: ${QEMU_MEM="8G"}
 if [[ $SKIP_SYSTEMD == 1 ]]; then
 	KERNEL_CMDLINE_EXTRA="init=/sbin/init-minimal $KERNEL_CMDLINE_EXTRA"
 fi
@@ -107,10 +90,6 @@ fi
 # top of the kernel tree quite often, cd there.
 pushd "$WORKSPACE_DIR" >/dev/null
 
-if [[ "$CLEAR" == 1 ]]; then
-	clear
-fi
-
 # SSH Keys
 : ${SSH_KEY:="${HOME}/.ssh/linux-kernel-vscode-rsa"}
 : ${SSH_CMD:="ssh -p 5555 -i ${SSH_KEY} -o IdentitiesOnly=yes -o NoHostAuthenticationForLocalhost=yes root@localhost"}
@@ -120,7 +99,7 @@ if [ ! -f ${SSH_KEY} ]; then
 fi
 
 # QEMU start command
-: ${VM_START:="${QEMU_CMD} -s -nographic -smp 4 -m 4G -qmp tcp:localhost:4444,server,nowait -serial mon:stdio \
+: ${VM_START:="${QEMU_CMD} -s -nographic -smp ${QEMU_CPU} -m ${QEMU_MEM} -qmp tcp:localhost:4444,server,nowait -serial ${QEMU_SERIAL}\
     -net nic,model=virtio-net-pci -net user,hostfwd=tcp::5555-:22 \
     -virtfs local,path=/,mount_tag=hostfs,security_model=none,multidevs=remap \
     -append \"console=${SERIAL_TTY},115200 root=/dev/sda rw nokaslr init=/lib/systemd/systemd debug systemd.log_level=info ${KERNEL_CMDLINE_EXTRA}\" \
@@ -180,13 +159,12 @@ case "${COMMAND}" in
 	# Generate not only the kernel but also the clangd config
 	CMD="${MAKE} ${SILENT_BUILD_FLAG} ARCH=${TARGET_ARCH} all compile_commands.json"
 	echo ${CMD}
-	eval ${CMD} &
-	spinner $!
+	eval ${CMD}
 
 	# A gdb index may need to be re-generated. Don't clear the above make logs.
-	CLEAR=0 $SCRIPT gdb-index
+	# $SCRIPT gdb-index
 	# A tracer module may need to be re-built
-	CLEAR=0 $SCRIPT systemtap-build
+	# $SCRIPT systemtap-build
 	;;
 "gdb-index")
 	# Hitting a breakpoint is *much* faster if we pre-build a gdb symbol index

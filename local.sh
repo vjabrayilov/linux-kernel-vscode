@@ -11,6 +11,7 @@
 
 ## Generate objects in a subdirectory
 # MAKE="$MAKE O=.vscode/build-$TARGET_ARCH/"
+# MAKE="fakeroot make -j`nproc` "
 
 ## Enable some random kernel CONFIG by default as part of the .config generation
 # if [ $COMMAND = "defconfig" ]; then
@@ -21,15 +22,6 @@
 # if [ $COMMAND = "build" ]; then
 #   eval ${MAKE} ARCH=${TARGET_ARCH} olddefconfig
 # fi
-
-## Make the build verbose
-# SILENT_BUILD_FLAG=""
-
-## Disable the build spinner
-# SPINNER=0
-
-## Don't clear the screen before each task
-# unset CLEAR
 
 ## Boot without systemd (use the /sbin/init-minimal shell script instead)
 # SKIP_SYSTEMD=1
@@ -43,3 +35,5 @@
 
 ## Fuzz as an unprivileged user
 # SYZ_MANAGER_CFG_EXTRA='"sandbox": "setuid",'
+
+## Can set vCPU number and memory size for QEMU too

@@ -194,6 +194,7 @@ anywhere. For example:
 
 ```shell
 alias lkv=~/linux/.vscode/tasks.sh
+alias sudo='sudo '
 lkv build # Equivalent to Ctrl+Shift+B
 lkv start # Equivalent to F5
 lkv ssh
